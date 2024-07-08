@@ -11,7 +11,7 @@ class regdb_ir(BaseImageDataset):
     train in market1501 type data
     test in orignal regdb data
     """
-    dataset_dir = 'regdb/ir_modify/'
+    dataset_dir = 'regdb/RegDB/ir_modify/'
 
     def __init__(self, root, trial= 0,verbose=True, **kwargs):
         super(regdb_ir, self).__init__()

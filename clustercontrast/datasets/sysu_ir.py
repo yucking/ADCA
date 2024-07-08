@@ -11,11 +11,11 @@ class sysu_ir(BaseImageDataset):
     train in market1501 type data
     test in orignal sysu data
     """
-    dataset_dir = 'sysu/ir_modify/'
+    dataset_dir = 'ir_modify/'
 
     def __init__(self, root, verbose=True, **kwargs):
         super(sysu_ir, self).__init__()
-        root='data/'
+        root='/home/fang/4t/lhp/ADCA/data/sysu/SYSU-MM01'
         self.dataset_dir = osp.join(root, self.dataset_dir)
         self.train_dir = osp.join(self.dataset_dir, 'bounding_box_train')
 

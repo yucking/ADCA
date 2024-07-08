@@ -148,7 +148,7 @@ class TestData(data.Dataset):
         test_image = []
         for i in range(len(test_img_file)):
             img = Image.open(test_img_file[i])
-            img = img.resize((img_size[0], img_size[1]), Image.ANTIALIAS)
+            img = img.resize((img_size[0], img_size[1]), Image.LANCZOS)
             pix_array = np.array(img)
             test_image.append(pix_array)
         test_image = np.array(test_image)
@@ -521,7 +521,7 @@ def main_worker_stage1(args,log_s1_name):
                 normalize,
             ])
             mode='all'
-            data_path='./data/regdb/'
+            data_path='./data/regdb/RegDB/'
             query_img, query_label = process_test_regdb(data_path, trial=trial, modal='visible')
             gall_img, gall_label = process_test_regdb(data_path, trial=trial, modal='thermal')
 
@@ -780,7 +780,7 @@ def main_worker_stage2(args,log_s1_name,log_s2_name):
                 normalize,
             ])
 
-            data_path='./data/regdb/'
+            data_path='./data/regdb/RegDB/'
             query_img, query_label = process_test_regdb(data_path, trial=trial, modal='visible')
             gall_img, gall_label = process_test_regdb(data_path, trial=trial, modal='thermal')
 

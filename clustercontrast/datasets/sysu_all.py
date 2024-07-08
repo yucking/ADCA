@@ -16,11 +16,11 @@ class sysu_all(BaseImageDataset):
     # identities: 1501 (+1 for background)
     # images: 12936 (train) + 3368 (query) + 15913 (gallery)
     """
-    dataset_dir = 'sysu/all_modify/'
+    dataset_dir = 'all_modify/'
 
     def __init__(self, root, verbose=True, **kwargs):
         super(sysu_all, self).__init__()
-        root='/dat01/yangbin/data/'
+        root='/home/fang/4t/lhp/ADCA/data/sysu/SYSU-MM01'
         self.dataset_dir = osp.join(root, self.dataset_dir)
         self.train_dir = osp.join(self.dataset_dir, 'bounding_box_train')
         self.query_dir = osp.join(self.dataset_dir, 'query')

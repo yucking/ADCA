@@ -37,17 +37,17 @@ from ChannelAug import ChannelAdap, ChannelAdapGray, ChannelRandomErasing,Channe
 from collections import Counter
 
 
-def get_data(name, data_dir):
-    root = osp.join(data_dir, name)
+def get_data(name, data_dir): # 从给定的数据目录data_dir中获取名为name的数据集，并返回该数据集
+    root = osp.join(data_dir, name) 
     dataset = datasets.create(name, root)
     return dataset
 
 def get_train_loader_ir(args, dataset, height, width, batch_size, workers,
-                     num_instances, iters, trainset=None, no_cam=False,train_transformer=None):
+                     num_instances, iters, trainset=None, no_cam=False,train_transformer=None): # 获取训练数据集的迭代器
 
 
 
-    train_set = sorted(dataset.train) if trainset is None else sorted(trainset)
+    train_set = sorted(dataset.train) if trainset is None else sorted(trainset) # 
     rmgs_flag = num_instances > 0
     if rmgs_flag:
         if no_cam:
@@ -64,7 +64,7 @@ def get_train_loader_ir(args, dataset, height, width, batch_size, workers,
     return train_loader
 
 def get_train_loader_color(args, dataset, height, width, batch_size, workers,
-                     num_instances, iters, trainset=None, no_cam=False,train_transformer=None,train_transformer1=None):
+                     num_instances, iters, trainset=None, no_cam=False,train_transformer=None,train_transformer1=None):# 是获取一个用于训练的图像数据加载器，可以处理多种数据集，并根据需要进行图像预处理和采样
 
 
 
@@ -93,11 +93,11 @@ def get_train_loader_color(args, dataset, height, width, batch_size, workers,
 
 def get_test_loader(dataset, height, width, batch_size, workers, testset=None,test_transformer=None):
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],
-                             std=[0.229, 0.224, 0.225])
+                             std=[0.229, 0.224, 0.225]) # # 对图像进行归一化处理， 对图像的每个通道进行归一化，均值和标准差分别为[0.485, 0.456, 0.406]和[0.229, 0.224, 0.225]
     if test_transformer is None:
-        test_transformer = T.Compose([
-            T.Resize((height, width), interpolation=3),
-            T.ToTensor(),
+        test_transformer = T.Compose([ # 将多个转换器组合在一起
+            T.Resize((height, width), interpolation=3),# 将图像大小调整为指定高度和宽度，其中3表示双线性插值
+            T.ToTensor(),# 将图像转换为张量
             normalizer
         ])
 
@@ -115,20 +115,20 @@ def get_test_loader(dataset, height, width, batch_size, workers, testset=None,te
 def create_model(args):
     model = models.create(args.arch, num_features=args.features, norm=True, dropout=args.dropout,
                           num_classes=0, pooling_type=args.pooling_type)
-    # use CUDA
+    # use CUDA accelerate
     model.cuda()
-    model = nn.DataParallel(model)#,output_device=1)
+    model = nn.DataParallel(model)#,output_device=1) 将模型设置为数据并行化。数据并行化是一种训练多GPU的方法，它可以将模型复制到多个GPU上，并将输入数据分成多个部分，每个部分在一个GPU上进行计算，最后将结果合并
     return model
 
 
 
-class TestData(data.Dataset):
+class TestData(data.Dataset):# 用于加载和处理测试数据，例如在训练模型时进行验证
     def __init__(self, test_img_file, test_label, transform=None, img_size = (144,288)):
 
         test_image = []
         for i in range(len(test_img_file)):
             img = Image.open(test_img_file[i])
-            img = img.resize((img_size[0], img_size[1]), Image.ANTIALIAS)
+            img = img.resize((img_size[0], img_size[1]), Image.LANCZOS)
             pix_array = np.array(img)
             test_image.append(pix_array)
         test_image = np.array(test_image)
@@ -136,15 +136,15 @@ class TestData(data.Dataset):
         self.test_label = test_label
         self.transform = transform
 
-    def __getitem__(self, index):
+    def __getitem__(self, index):# 用于从数据集中获取特定索引的图像和标签
         img1,  target1 = self.test_image[index],  self.test_label[index]
         img1 = self.transform(img1)
         return img1, target1
 
-    def __len__(self):
+    def __len__(self):# 返回数据集中的图像数量
         return len(self.test_image)
 
-def process_query_sysu(data_path, mode = 'all', relabel=False):
+def process_query_sysu(data_path, mode = 'all', relabel=False):# 主要用于处理查询中山大学（SYSU）的系统用户信息。函数的输入参数为一个字典，包含查询的关键词和查询的类型。函数的返回值是一个字典，包含查询结果。
     if mode== 'all':
         ir_cameras = ['cam3','cam6']
     elif mode =='indoor':
@@ -175,7 +175,7 @@ def process_query_sysu(data_path, mode = 'all', relabel=False):
         query_cam.append(camid)
     return query_img, np.array(query_id), np.array(query_cam)
 
-def process_gallery_sysu(data_path, mode = 'all', trial = 0, relabel=False):
+def process_gallery_sysu(data_path, mode = 'all', trial = 0, relabel=False):# 用于处理SYSU-MM01数据集
     
     random.seed(trial)
     
@@ -208,34 +208,38 @@ def process_gallery_sysu(data_path, mode = 'all', trial = 0, relabel=False):
     return gall_img, np.array(gall_id), np.array(gall_cam)
     
 
-def fliplr(img):
+def fliplr(img):# 水平翻转
     '''flip horizontal'''
     inv_idx = torch.arange(img.size(3)-1,-1,-1).long()  # N x C x H x W
     img_flip = img.index_select(3,inv_idx)
     return img_flip
-def extract_gall_feat(model,gall_loader,ngall):
-    pool_dim=2048
+
+def extract_gall_feat(model,gall_loader,ngall):# 提取Gallery特征
+    pool_dim=2048 # 特征维度
     net = model
-    net.eval()
+    net.eval() # 设置模型为评估模式
     print ('Extracting Gallery Feature...')
-    start = time.time()
-    ptr = 0
+    start = time.time() # 记录开始时间
+    ptr = 0 # 初始化指针
     gall_feat_pool = np.zeros((ngall, pool_dim))
-    gall_feat_fc = np.zeros((ngall, pool_dim))
-    with torch.no_grad():
-        for batch_idx, (input, label ) in enumerate(gall_loader):
-            batch_num = input.size(0)
-            flip_input = fliplr(input)
-            input = Variable(input.cuda())
-            feat_fc = net( input,input, 1)
-            flip_input = Variable(flip_input.cuda())
+    gall_feat_fc = np.zeros((ngall, pool_dim))# 初始化Gallery特征矩阵
+    with torch.no_grad():# 禁用梯度计算
+        for batch_idx, (input, label ) in enumerate(gall_loader):# 获取每个 batch 的输入图像和标签
+            batch_num = input.size(0) # 获取当前 batch 的图像数量
+            flip_input = fliplr(input) # 水平翻转当前 batch 的图像
+
+            input = Variable(input.cuda()) # 将输入图像移动到 GPU 上
+            feat_fc = net( input,input, 1) # 提取特征
+
+            flip_input = Variable(flip_input.cuda()) # 将水平翻转后的图像移动到 GPU 上
             feat_fc_1 = net( flip_input,flip_input, 1)
-            feature_fc = (feat_fc.detach() + feat_fc_1.detach())/2
-            fnorm_fc = torch.norm(feature_fc, p=2, dim=1, keepdim=True)
-            feature_fc = feature_fc.div(fnorm_fc.expand_as(feature_fc))
-            gall_feat_fc[ptr:ptr+batch_num,: ]   = feature_fc.cpu().numpy()
-            ptr = ptr + batch_num
-    print('Extracting Time:\t {:.3f}'.format(time.time()-start))
+
+            feature_fc = (feat_fc.detach() + feat_fc_1.detach())/2 # 计算特征的平均值
+            fnorm_fc = torch.norm(feature_fc, p=2, dim=1, keepdim=True) # 计算特征向量的L2范数
+            feature_fc = feature_fc.div(fnorm_fc.expand_as(feature_fc)) # 将特征向量归一化
+            gall_feat_fc[ptr:ptr+batch_num,: ]   = feature_fc.cpu().numpy() # 将特征向量保存到 Gallery 特征矩阵中
+            ptr = ptr + batch_num # 更新指针
+    print('Extracting Time:\t {:.3f}'.format(time.time()-start)) # 打印提取特征的时间
     return gall_feat_fc
     
 def extract_query_feat(model,query_loader,nquery):
@@ -267,7 +271,7 @@ def extract_query_feat(model,query_loader,nquery):
 
 
 def eval_sysu(distmat, q_pids, g_pids, q_camids, g_camids, max_rank = 20):
-    """Evaluation with sysu metric
+    """Evaluation with sysu metric 评估SYSU数据集的性能
     Key: for each query identity, its gallery images from the same camera view are discarded. "Following the original setting in ite dataset"
     """
     num_q, num_g = distmat.shape
@@ -344,26 +348,30 @@ def eval_sysu(distmat, q_pids, g_pids, q_camids, g_camids, max_rank = 20):
     mINP = np.mean(all_INP)
     return new_all_cmc, mAP, mINP
 
-def pairwise_distance(features_q, features_g):
+def pairwise_distance(features_q, features_g): # # compute the pairwise distance between each feature vector in features_q and features_g
     x = torch.from_numpy(features_q)
-    y = torch.from_numpy(features_g)
-    m, n = x.size(0), y.size(0)
-    x = x.view(m, -1)
+    y = torch.from_numpy(features_g) # 从NumPy数组转换为PyTorch张量
+    m, n = x.size(0), y.size(0) # 计算两个张量的大小，分别表示两个特征向量序列的长度。
+    x = x.view(m, -1) # 将x张量重新整形为(m, -1)，其中-1表示自动计算该维度的大小。
     y = y.view(n, -1)
+    '''计算x中每个元素与其自身的平方差,然后对结果进行累加,接着将结果扩展为(m, n)大小的矩阵
+    计算y中每个元素与其自身的平方差,然后对结果进行累加,接着将结果扩展为(n, m)大小的矩阵，并转置
+    '''
     dist_m = torch.pow(x, 2).sum(dim=1, keepdim=True).expand(m, n) + \
            torch.pow(y, 2).sum(dim=1, keepdim=True).expand(n, m).t()
+    # 使用addmm函数计算x和y之间的成对距离，其中1表示权重，-2表示x和y之间的平方差，x和y分别是dist_m的行和列
     dist_m.addmm_(1, -2, x, y.t())
     return dist_m.numpy()
 
-def select_merge_data(dists):
-    dists = torch.from_numpy(dists)
+def select_merge_data(dists): # 从一组距离矩阵中选择并合并数据
+    dists = torch.from_numpy(dists) 
     print(dists.size())
     dists = dists.numpy()
     ind = np.unravel_index(np.argsort(dists, axis=None)[::-1], dists.shape) #np.argsort(dists, axis=1)#
     idx1 = ind[0]
     idx2 = ind[1]
     dist_list = dists[idx1,idx2]
-    return idx1, idx2, dist_list
+    return idx1, idx2, dist_list # idx1和idx2是两个索引数组，分别表示在距离矩阵中找到的最小距离的行和列。dist_list是一个包含最小距离的列表。
 
 
 def main():
@@ -399,8 +407,8 @@ def main_worker_stage1(args,log_s1_name):
     model = create_model(args)
     # Optimizer
     params = [{"params": [value]} for _, value in model.named_parameters() if value.requires_grad]
-    optimizer = torch.optim.Adam(params, lr=args.lr, weight_decay=args.weight_decay)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=0.1)
+    optimizer = torch.optim.Adam(params, lr=args.lr, weight_decay=args.weight_decay) # 创建优化器，使用Adam算法进行梯度更新。
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=0.1) # 创建学习率调度器，每隔一定的轮数（epoch）降低学习率
     # Trainer
     trainer = ClusterContrastTrainer_ADCA_joint(model)
     # ########################
@@ -408,6 +416,7 @@ def main_worker_stage1(args,log_s1_name):
                          std=[0.229, 0.224, 0.225])
     height=args.height
     width=args.width
+    # 创建一个图像变换器，用于对RGB图像进行数据增强
     train_transformer_rgb = T.Compose([
     T.Resize((height, width), interpolation=3),
     T.Pad(10),
@@ -437,7 +446,7 @@ def main_worker_stage1(args,log_s1_name):
         T.ToTensor(),
         normalizer,
         ChannelRandomErasing(probability = 0.5),
-        ChannelAdapGray(probability =0.5)])
+        ChannelAdapGray(probability =0.5)]) # 当probability大于0.5时，图像将被转换为灰度图像；否则，原始图像将被保留
     for epoch in range(args.epochs):
         with torch.no_grad():
             if epoch == 0:
@@ -453,7 +462,7 @@ def main_worker_stage1(args,log_s1_name):
 
             cluster_loader_rgb = get_test_loader(dataset_rgb, args.height, args.width,
                                              256, args.workers, 
-                                             testset=sorted(dataset_rgb.train))
+                                             testset=sorted(dataset_rgb.train)) # 创建一个测试数据加载器，用于加载RGB数据集
             features_rgb, _ = extract_features(model, cluster_loader_rgb, print_freq=50,mode=1)
             del cluster_loader_rgb,
             features_rgb = torch.cat([features_rgb[f].unsqueeze(0) for f, _, _ in sorted(dataset_rgb.train)], 0)
@@ -465,16 +474,16 @@ def main_worker_stage1(args,log_s1_name):
                                              testset=sorted(dataset_ir.train))
             features_ir, _ = extract_features(model, cluster_loader_ir, print_freq=50,mode=2)
             del cluster_loader_ir
-            features_ir = torch.cat([features_ir[f].unsqueeze(0) for f, _, _ in sorted(dataset_ir.train)], 0)
+            features_ir = torch.cat([features_ir[f].unsqueeze(0) for f, _, _ in sorted(dataset_ir.train)], 0) # 将特征转换为张量，并按文件名排序。
 
 
             rerank_dist_ir = compute_jaccard_distance(features_ir, k1=args.k1, k2=args.k2,search_option=3)#rerank_dist_all_jacard[features_rgb.size(0):,features_rgb.size(0):]#
-            pseudo_labels_ir = cluster_ir.fit_predict(rerank_dist_ir)
+            pseudo_labels_ir = cluster_ir.fit_predict(rerank_dist_ir) # 使用DBSCAN算法对特征进行聚类，并生成伪标签。
             rerank_dist_rgb = compute_jaccard_distance(features_rgb, k1=args.k1, k2=args.k2,search_option=3)#rerank_dist_all_jacard[:features_rgb.size(0),:features_rgb.size(0)]#
             pseudo_labels_rgb = cluster_rgb.fit_predict(rerank_dist_rgb)
             del rerank_dist_rgb
             del rerank_dist_ir
-            num_cluster_ir = len(set(pseudo_labels_ir)) - (1 if -1 in pseudo_labels_ir else 0)
+            num_cluster_ir = len(set(pseudo_labels_ir)) - (1 if -1 in pseudo_labels_ir else 0) # 计算RGB数据集的聚类数量。
             num_cluster_rgb = len(set(pseudo_labels_rgb)) - (1 if -1 in pseudo_labels_rgb else 0)
 
         # generate new dataset and calculate cluster centers
@@ -494,15 +503,15 @@ def main_worker_stage1(args,log_s1_name):
             return centers
 
         cluster_features_ir = generate_cluster_features(pseudo_labels_ir, features_ir)
-        cluster_features_rgb = generate_cluster_features(pseudo_labels_rgb, features_rgb)
+        cluster_features_rgb = generate_cluster_features(pseudo_labels_rgb, features_rgb) # 生成RGB数据集的聚类中心
         memory_ir = ClusterMemory(model.module.num_features, num_cluster_ir, temp=args.temp,
                                momentum=args.momentum, use_hard=args.use_hard).cuda()
         memory_rgb = ClusterMemory(model.module.num_features, num_cluster_rgb, temp=args.temp,
-                               momentum=args.momentum, use_hard=args.use_hard).cuda()
+                               momentum=args.momentum, use_hard=args.use_hard).cuda() # 创建一个ClusterMemory对象，用于存储RGB数据集的聚类中心。
         memory_ir.features = F.normalize(cluster_features_ir, dim=1).cuda()
-        memory_rgb.features = F.normalize(cluster_features_rgb, dim=1).cuda()
+        memory_rgb.features = F.normalize(cluster_features_rgb, dim=1).cuda() # 将聚类中心归一化，并存储到ClusterMemory对象中。
 
-        trainer.memory_ir = memory_ir
+        trainer.memory_ir = memory_ir # 将ClusterMemory对象传递给trainer。
         trainer.memory_rgb = memory_rgb
 
         pseudo_labeled_dataset_ir = []
@@ -552,7 +561,7 @@ def main_worker_stage1(args,log_s1_name):
                 normalize,
             ])
             mode='all'
-            data_path='./data/sysu'
+            data_path='/home/fang/4t/lhp/ADCA/data/sysu/SYSU-MM01'
             query_img, query_label, query_cam = process_query_sysu(data_path, mode=mode)
             nquery = len(query_label)
             queryset = TestData(query_img, query_label, transform=transform_test, img_size=(args.img_w, args.img_h))
@@ -606,11 +615,11 @@ def main_worker_stage1(args,log_s1_name):
         lr_scheduler.step()
 
     print('==> Test with the best model all search:')
-    checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar'))
+    checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar')) # 加载一个预训练的模型（通常是在训练过程中保存的最好模型
     model.load_state_dict(checkpoint['state_dict'])
 
     mode='all'
-    data_path='./data/sysu'
+    data_path='/home/fang/4t/lhp/ADCA/data/sysu/SYSU-MM01'
     query_img, query_label, query_cam = process_query_sysu(data_path, mode=mode)
     nquery = len(query_label)
     queryset = TestData(query_img, query_label, transform=transform_test, img_size=(args.img_w, args.img_h))
@@ -655,7 +664,7 @@ def main_worker_stage1(args,log_s1_name):
     checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar'))
     model.load_state_dict(checkpoint['state_dict'])
     mode='indoor'
-    data_path='./data/sysu'
+    data_path='/home/fang/4t/lhp/ADCA/data/sysu/SYSU-MM01'
     query_img, query_label, query_cam = process_query_sysu(data_path, mode=mode)
     nquery = len(query_label)
     queryset = TestData(query_img, query_label, transform=transform_test, img_size=(args.img_w, args.img_h))
@@ -911,7 +920,7 @@ def main_worker_stage2(args,log_s1_name,log_s2_name):
                 normalize,
             ])
             mode='all'
-            data_path='./data/sysu'
+            data_path='/home/fang/4t/lhp/ADCA/data/sysu/SYSU-MM01'
             query_img, query_label, query_cam = process_query_sysu(data_path, mode=mode)
             nquery = len(query_label)
             queryset = TestData(query_img, query_label, transform=transform_test, img_size=(args.img_w, args.img_h))
@@ -969,7 +978,7 @@ def main_worker_stage2(args,log_s1_name,log_s2_name):
     model.load_state_dict(checkpoint['state_dict'])
     mode='all'
     print(mode)
-    data_path='./data/sysu'
+    data_path='/home/fang/4t/lhp/ADCA/data/sysu/SYSU-MM01'
     query_img, query_label, query_cam = process_query_sysu(data_path, mode=mode)
     nquery = len(query_label)
     queryset = TestData(query_img, query_label, transform=transform_test, img_size=(args.img_w, args.img_h))
@@ -1011,7 +1020,7 @@ def main_worker_stage2(args,log_s1_name,log_s2_name):
 
     mode='indoor'
     print(mode)
-    data_path='./data/sysu'
+    data_path='/home/fang/4t/lhp/ADCA/data/sysu/SYSU-MM01'
     query_img, query_label, query_cam = process_query_sysu(data_path, mode=mode)
     nquery = len(query_label)
     queryset = TestData(query_img, query_label, transform=transform_test, img_size=(args.img_w, args.img_h))
