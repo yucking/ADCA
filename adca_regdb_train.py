@@ -585,9 +585,9 @@ def main_worker_stage2(args,log_s1_name,log_s2_name):
     test_loader_rgb = get_test_loader(dataset_rgb, args.height, args.width, args.batch_size, args.workers)
     # Create model
     model = create_model(args)
-    checkpoint = load_checkpoint(osp.join('./logs/'+log_s1_name+'/'+str(trial), 'model_best.pth.tar'))
+    checkpoint = load_checkpoint(osp.join('./logs/'+log_s1_name+'/'+str(trial), 'model_best.pth.tar')) # 从指定的路径加载最优的模型参数
 
-    model.load_state_dict(checkpoint['state_dict'])
+    model.load_state_dict(checkpoint['state_dict']) # 从checkpoint字典中获取state_dict键对应的值，然后使用model.load_state_dict()方法将该值加载到当前模型中
     # Optimizer
     params = [{"params": [value]} for _, value in model.named_parameters() if value.requires_grad]
     optimizer = torch.optim.Adam(params, lr=args.lr, weight_decay=args.weight_decay)
@@ -681,17 +681,20 @@ def main_worker_stage2(args,log_s1_name,log_s2_name):
                 rgb_label.append(label.item())
 
         print('==> Statistics for RGB epoch {}: {} clusters'.format(epoch, num_cluster_rgb))
-###################################CMA
+################################### CMA
+        '''计算RGB和IR特征之间的相似度矩阵dist_cm。
+        选择要合并的RGB和IR数据点。
+        更新RGB和IR记忆库中的特征。'''
         if epoch>=0:
             print('CMA: aggregate ir and rgb momery'.format(epoch, num_cluster_ir))
-            dist_cm = np.matmul(features_rgb.numpy(), np.transpose(features_ir.numpy()))
-            idx1, idx2,dist_list = select_merge_data(dist_cm)
+            dist_cm = np.matmul(features_rgb.numpy(), np.transpose(features_ir.numpy()))# 计算RGB和IR特征之间的相似度矩阵
+            idx1, idx2,dist_list = select_merge_data(dist_cm)# # 从一组距离矩阵中选择并合并数据
             del features_ir,features_rgb
             del dist_cm
-            rgb_label_cnt = Counter(rgb_label) 
+            rgb_label_cnt = Counter(rgb_label) # 计算RGB和IR标签的计数。
             ir_label_cnt = Counter(ir_label)
-            idx_lenth = np.sum(dist_list>=0.5)
-            dist_list = dist_list[:idx_lenth]
+            idx_lenth = np.sum(dist_list>=0.5) #计算要合并的RGB和IR数据点的数量。
+            dist_list = dist_list[:idx_lenth] # 更新dist_list，使其仅包含大于等于0.5的元素
             rgb2ir_label = [(i,j) for i,j in zip(np.array(pseudo_labels_rgb)[idx1[:idx_lenth]],np.array(pseudo_labels_ir)[idx2[:idx_lenth]])]
             rgb2ir_label_cnt = Counter(rgb2ir_label)
             rgb2ir_label_cnt_sorted = sorted(rgb2ir_label_cnt.items(),key = lambda x:x[1],reverse = True)
@@ -712,6 +715,7 @@ def main_worker_stage2(args,log_s1_name,log_s2_name):
                 rgb_ratio = rgb_label_cnt[key[0]] / rgb_label_cnt[key[0]]+ir_label_cnt[key[1]]
                 ir_ratio = ir_label_cnt[key[1]] / rgb_label_cnt[key[0]]+ir_label_cnt[key[1]]
                 update_memory = trainer.memory_ir.features[key[1]]
+                # 动量更新
                 trainer.memory_rgb.features[key[0]] = lamda_cm*trainer.memory_rgb.features[key[0]] + (1-lamda_cm)*(update_memory)
                 trainer.memory_ir.features[key[1]] = lamda_cm*trainer.memory_ir.features[key[1]] + (1-lamda_cm)*(update_memory)
                 in_rgb_label.append(key[0])

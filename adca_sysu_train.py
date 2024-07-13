@@ -47,19 +47,25 @@ def get_train_loader_ir(args, dataset, height, width, batch_size, workers,
 
 
 
-    train_set = sorted(dataset.train) if trainset is None else sorted(trainset) # 
-    rmgs_flag = num_instances > 0
+    train_set = sorted(dataset.train) if trainset is None else sorted(trainset) # 根据trainset参数获取训练集，如果trainset为None，则使用dataset.train作为训练集
+    rmgs_flag = num_instances > 0 # 如果num_instances大于0，则设置rmgs_flag为True，否则为False.
     if rmgs_flag:
         if no_cam:
-            sampler = RandomMultipleGallerySamplerNoCam(train_set, num_instances)
+            sampler = RandomMultipleGallerySamplerNoCam(train_set, num_instances)# 不使用 CameraSetting 进行采样，而是直接从训练集中随机选择一个实例。这种方法不会生成具有真实感的图像，但可以避免训练过程中出现梯度问题。
         else:
-            sampler = RandomMultipleGallerySampler(train_set, num_instances)
+            sampler = RandomMultipleGallerySampler(train_set, num_instances)# 使用 CameraSetting 进行采样，它会根据给定的相机设置生成一组图像，然后从这些图像中随机选择一个作为采样实例。这种方法可以生成更具有真实感的图像，但可能会导致训练过程中出现梯度问题
     else:
         sampler = None
     train_loader = IterLoader(
         DataLoader(Preprocessor(train_set, root=dataset.images_dir, transform=train_transformer),
                    batch_size=batch_size, num_workers=workers, sampler=sampler,
                    shuffle=not rmgs_flag, pin_memory=True, drop_last=True), length=iters)
+    '''
+    train_transformer 是训练图像的预处理转换器
+    如果 rmgs_flag 为 True，则不打乱数据顺序，否则打乱数据顺序
+    pin_memory=True：是否将数据加载到固定内存中，以加速数据传输。
+    drop_last=True：是否抛弃最后一个批次，如果数据集的大小不能被批量大小整除，那么最后一个批次可能会较小，这种情况下，抛弃最后一个批次可以避免计算误差
+    length=iters 表示迭代次数'''
 
     return train_loader
 
@@ -79,17 +85,16 @@ def get_train_loader_color(args, dataset, height, width, batch_size, workers,
         sampler = None
     if train_transformer1 is None:
         train_loader = IterLoader(
-            DataLoader(Preprocessor(train_set, root=dataset.images_dir, transform=train_transformer),
+            DataLoader(Preprocessor(train_set, root=dataset.images_dir, transform=train_transformer), # 训练数据预处理
                        batch_size=batch_size, num_workers=workers, sampler=sampler,
                        shuffle=not rmgs_flag, pin_memory=True, drop_last=True), length=iters)
     else:
         train_loader = IterLoader(
-            DataLoader(Preprocessor_color(train_set, root=dataset.images_dir, transform=train_transformer,transform1=train_transformer1),
+            DataLoader(Preprocessor_color(train_set, root=dataset.images_dir, transform=train_transformer,transform1=train_transformer1), # 训练数据及CA通道加强数据预处理
                        batch_size=batch_size, num_workers=workers, sampler=sampler,
                        shuffle=not rmgs_flag, pin_memory=True, drop_last=True), length=iters)
 
     return train_loader
-
 
 def get_test_loader(dataset, height, width, batch_size, workers, testset=None,test_transformer=None):
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],
@@ -111,7 +116,6 @@ def get_test_loader(dataset, height, width, batch_size, workers, testset=None,te
 
     return test_loader
 
-
 def create_model(args):
     model = models.create(args.arch, num_features=args.features, norm=True, dropout=args.dropout,
                           num_classes=0, pooling_type=args.pooling_type)
@@ -119,7 +123,6 @@ def create_model(args):
     model.cuda()
     model = nn.DataParallel(model)#,output_device=1) 将模型设置为数据并行化。数据并行化是一种训练多GPU的方法，它可以将模型复制到多个GPU上，并将输入数据分成多个部分，每个部分在一个GPU上进行计算，最后将结果合并
     return model
-
 
 
 class TestData(data.Dataset):# 用于加载和处理测试数据，例如在训练模型时进行验证
@@ -210,7 +213,7 @@ def process_gallery_sysu(data_path, mode = 'all', trial = 0, relabel=False):# �
 
 def fliplr(img):# 水平翻转
     '''flip horizontal'''
-    inv_idx = torch.arange(img.size(3)-1,-1,-1).long()  # N x C x H x W
+    inv_idx = torch.arange(img.size(3)-1,-1,-1).long()  # N x C x H x W  ---N 是批次大小，C 是通道数，H 是图像高度，W 是图像宽度
     img_flip = img.index_select(3,inv_idx)
     return img_flip
 
@@ -367,7 +370,7 @@ def select_merge_data(dists): # 从一组距离矩阵中选择并合并数据
     dists = torch.from_numpy(dists) 
     print(dists.size())
     dists = dists.numpy()
-    ind = np.unravel_index(np.argsort(dists, axis=None)[::-1], dists.shape) #np.argsort(dists, axis=1)#
+    ind = np.unravel_index(np.argsort(dists, axis=None)[::-1], dists.shape) # argsort函数返回的是排序后的索引，而unravel_index函数将索引转换为多维索引
     idx1 = ind[0]
     idx2 = ind[1]
     dist_list = dists[idx1,idx2]
@@ -407,10 +410,10 @@ def main_worker_stage1(args,log_s1_name):
     model = create_model(args)
     # Optimizer
     params = [{"params": [value]} for _, value in model.named_parameters() if value.requires_grad]
-    optimizer = torch.optim.Adam(params, lr=args.lr, weight_decay=args.weight_decay) # 创建优化器，使用Adam算法进行梯度更新。
+    optimizer = torch.optim.Adam(params, lr=args.lr, weight_decay=args.weight_decay) # 创建优化器，使用Adam算法（自适应）进行梯度更新。
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=0.1) # 创建学习率调度器，每隔一定的轮数（epoch）降低学习率
     # Trainer
-    trainer = ClusterContrastTrainer_ADCA_joint(model)
+    trainer = ClusterContrastTrainer_ADCA_joint(model) # 训练一个基于双模态的深度学习模型，以提高图像分类和检索的性能
     # ########################
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],
                          std=[0.229, 0.224, 0.225])
@@ -419,12 +422,12 @@ def main_worker_stage1(args,log_s1_name):
     # 创建一个图像变换器，用于对RGB图像进行数据增强
     train_transformer_rgb = T.Compose([
     T.Resize((height, width), interpolation=3),
-    T.Pad(10),
+    T.Pad(10),  # 边界填充10个像素的黑色边框
     T.RandomCrop((height, width)),
     T.RandomHorizontalFlip(p=0.5),
     T.ToTensor(),
     normalizer,
-    ChannelRandomErasing(probability = 0.5)
+    ChannelRandomErasing(probability = 0.5) # 以50%的概率随机擦除图像中的某个通道。这是用于数据增强的一种方法，可以提高模型的泛化能力
     ])
     
     train_transformer_rgb1 = T.Compose([
@@ -442,17 +445,19 @@ def main_worker_stage1(args,log_s1_name):
         T.Resize((height, width), interpolation=3),
         T.Pad(10),
         T.RandomCrop((288, 144)),
-        T.RandomHorizontalFlip(),
+        T.RandomHorizontalFlip(), # 以50%的概率水平翻转图像
         T.ToTensor(),
         normalizer,
         ChannelRandomErasing(probability = 0.5),
         ChannelAdapGray(probability =0.5)]) # 当probability大于0.5时，图像将被转换为灰度图像；否则，原始图像将被保留
-    for epoch in range(args.epochs):
+    
+    for epoch in range(args.epochs): # 基于双阈值DBSCAN算法的半监督学习方法。首先对RGB和红外图像分别进行聚类，然后将聚类结果用于生成伪标签，最后使用这些伪标签来训练模型。
         with torch.no_grad():
-            if epoch == 0:
+            if epoch == 0: # 第一个周期时，使用图像特征初始化DBSCAN聚类器
                 # DBSCAN cluster
                 ir_eps = 0.6
                 print('IR Clustering criterion: eps: {:.3f}'.format(ir_eps))
+                # 基于密度聚类DBSCAN：并且能够识别并标记低密度区域的点作为噪声或离群点-----（-1）
                 cluster_ir = DBSCAN(eps=ir_eps, min_samples=4, metric='precomputed', n_jobs=-1)
                 rgb_eps = 0.6
                 print('RGB Clustering criterion: eps: {:.3f}'.format(rgb_eps))
@@ -465,7 +470,7 @@ def main_worker_stage1(args,log_s1_name):
                                              testset=sorted(dataset_rgb.train)) # 创建一个测试数据加载器，用于加载RGB数据集
             features_rgb, _ = extract_features(model, cluster_loader_rgb, print_freq=50,mode=1)
             del cluster_loader_rgb,
-            features_rgb = torch.cat([features_rgb[f].unsqueeze(0) for f, _, _ in sorted(dataset_rgb.train)], 0)
+            features_rgb = torch.cat([features_rgb[f].unsqueeze(0) for f, _, _ in sorted(dataset_rgb.train)], 0) # 拼接处理好的特征向量并存储：张量的大小为(num_images, num_features)，其中num_images是dataset_rgb.train中的图像数量，num_features是每个图像的特征向量的大小
 
             
             print('==> Create pseudo labels for unlabeled IR data')
@@ -479,7 +484,7 @@ def main_worker_stage1(args,log_s1_name):
 
             rerank_dist_ir = compute_jaccard_distance(features_ir, k1=args.k1, k2=args.k2,search_option=3)#rerank_dist_all_jacard[features_rgb.size(0):,features_rgb.size(0):]#
             pseudo_labels_ir = cluster_ir.fit_predict(rerank_dist_ir) # 使用DBSCAN算法对特征进行聚类，并生成伪标签。
-            rerank_dist_rgb = compute_jaccard_distance(features_rgb, k1=args.k1, k2=args.k2,search_option=3)#rerank_dist_all_jacard[:features_rgb.size(0),:features_rgb.size(0)]#
+            rerank_dist_rgb = compute_jaccard_distance(features_rgb, k1=args.k1, k2=args.k2,search_option=3) # 计算Jaccard距离
             pseudo_labels_rgb = cluster_rgb.fit_predict(rerank_dist_rgb)
             del rerank_dist_rgb
             del rerank_dist_ir
@@ -488,22 +493,22 @@ def main_worker_stage1(args,log_s1_name):
 
         # generate new dataset and calculate cluster centers
         @torch.no_grad()
-        def generate_cluster_features(labels, features):
+        def generate_cluster_features(labels, features): # 在DBSCAN聚类算法中生成聚类中心特征
             centers = collections.defaultdict(list)
             for i, label in enumerate(labels):
-                if label == -1:
+                if label == -1: # DBSCAN算法将未标记的样本标记为-1，因此我们跳过这些样本。
                     continue
                 centers[labels[i]].append(features[i])
 
             centers = [
-                torch.stack(centers[idx], dim=0).mean(0) for idx in sorted(centers.keys())
+                torch.stack(centers[idx], dim=0).mean(0) for idx in sorted(centers.keys())# 计算一组中心点的平均值
             ]
 
             centers = torch.stack(centers, dim=0)
             return centers
 
         cluster_features_ir = generate_cluster_features(pseudo_labels_ir, features_ir)
-        cluster_features_rgb = generate_cluster_features(pseudo_labels_rgb, features_rgb) # 生成RGB数据集的聚类中心
+        cluster_features_rgb = generate_cluster_features(pseudo_labels_rgb, features_rgb) 
         memory_ir = ClusterMemory(model.module.num_features, num_cluster_ir, temp=args.temp,
                                momentum=args.momentum, use_hard=args.use_hard).cuda()
         memory_rgb = ClusterMemory(model.module.num_features, num_cluster_rgb, temp=args.temp,
@@ -511,7 +516,7 @@ def main_worker_stage1(args,log_s1_name):
         memory_ir.features = F.normalize(cluster_features_ir, dim=1).cuda()
         memory_rgb.features = F.normalize(cluster_features_rgb, dim=1).cuda() # 将聚类中心归一化，并存储到ClusterMemory对象中。
 
-        trainer.memory_ir = memory_ir # 将ClusterMemory对象传递给trainer。
+        trainer.memory_ir = memory_ir # 将ClusterMemory对象传递给trainer模型416。
         trainer.memory_rgb = memory_rgb
 
         pseudo_labeled_dataset_ir = []
@@ -541,7 +546,7 @@ def main_worker_stage1(args,log_s1_name):
                                         128, args.workers, args.num_instances, iters,
                                         trainset=pseudo_labeled_dataset_rgb, no_cam=args.no_cam,train_transformer=train_transformer_rgb,train_transformer1=train_transformer_rgb1)
 
-        train_loader_ir.new_epoch()
+        train_loader_ir.new_epoch()# 重置加载器
         train_loader_rgb.new_epoch()
 
         trainer.train(epoch, train_loader_ir,train_loader_rgb, optimizer,
@@ -567,6 +572,7 @@ def main_worker_stage1(args,log_s1_name):
             queryset = TestData(query_img, query_label, transform=transform_test, img_size=(args.img_w, args.img_h))
             query_loader = data.DataLoader(queryset, batch_size=args.test_batch, shuffle=False, num_workers=4)
             query_feat_fc = extract_query_feat(model,query_loader,nquery)
+
             for trial in range(1):
                 gall_img, gall_label, gall_cam = process_gallery_sysu(data_path, mode=mode, trial=trial)
                 ngall = len(gall_label)
@@ -576,7 +582,7 @@ def main_worker_stage1(args,log_s1_name):
                 gall_feat_fc = extract_gall_feat(model,trial_gall_loader,ngall)
 
                 # fc feature
-                distmat = np.matmul(query_feat_fc, np.transpose(gall_feat_fc))
+                distmat = np.matmul(query_feat_fc, np.transpose(gall_feat_fc)) #计算距离矩阵
                 cmc, mAP, mINP = eval_sysu(-distmat, query_label, gall_label, query_cam, gall_cam)
 
                 if trial == 0:
@@ -612,7 +618,7 @@ def main_worker_stage1(args,log_s1_name):
             print('\n * Finished epoch {:3d}  model mAP: {:5.1%}  best: {:5.1%}{}\n'.
                   format(epoch, mAP, best_mAP, ' *' if is_best else ''))
 ############################
-        lr_scheduler.step()
+        lr_scheduler.step() # 更新学习率
 
     print('==> Test with the best model all search:')
     checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar')) # 加载一个预训练的模型（通常是在训练过程中保存的最好模型
@@ -663,6 +669,7 @@ def main_worker_stage1(args,log_s1_name):
     print('==> Test with the best model indoor search:')
     checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar'))
     model.load_state_dict(checkpoint['state_dict'])
+
     mode='indoor'
     data_path='/home/fang/4t/lhp/ADCA/data/sysu/SYSU-MM01'
     query_img, query_label, query_cam = process_query_sysu(data_path, mode=mode)
@@ -705,6 +712,9 @@ def main_worker_stage1(args,log_s1_name):
     end_time = time.monotonic()
     print('Total running time: ', timedelta(seconds=end_time - start_time))
 
+    # sys.stdout.close()  # 关闭Logger实例
+    # sys.stdout = original_stdout  # 恢复原始的sys.stdout
+
 
 def main_worker_stage2(args,log_s1_name,log_s2_name):
     start_epoch=0
@@ -714,7 +724,7 @@ def main_worker_stage2(args,log_s1_name,log_s2_name):
 
     cudnn.benchmark = True
 
-    sys.stdout = Logger(osp.join(args.logs_dir, 'log.txt'))
+    sys.stdout = Logger(osp.join(args.logs_dir, 'log.txt'))# 日志重定向有问题：虽然生成了两个不同路径的日志文件，但可能因为日志名称相同，故stage1结束后，仍然打印了stage2的所有打印信息
     print("==========\nArgs:{}\n==========".format(args))
 
     # Create datasets
@@ -820,18 +830,18 @@ def main_worker_stage2(args,log_s1_name,log_s2_name):
                 rgb_label.append(label.item())
         print('==> Statistics for RGB epoch {}: {} clusters'.format(epoch, num_cluster_rgb))
 
-###################################CMA
+################################### CMA
         print('merge ir and rgb momery'.format(epoch, num_cluster_ir))
         print('select_merge_data')
         label_to_images = {}
-        dist_cm = np.matmul(features_rgb.numpy(), np.transpose(features_ir.numpy()))
+        dist_cm = np.matmul(features_rgb.numpy(), np.transpose(features_ir.numpy())) # 计算距离矩阵
         idx1, idx2,dist_list = select_merge_data(dist_cm)
         del features_ir,features_rgb
 
         del dist_cm
-        rgb_label_cnt = Counter(rgb_label) 
+        rgb_label_cnt = Counter(rgb_label) # 计算 RGB 和 IR 标签的数量
         ir_label_cnt = Counter(ir_label)
-        idx_lenth = np.sum(dist_list>=0.5)
+        idx_lenth = np.sum(dist_list>=0.5) # 计算有效距离数量
         dist_list = dist_list[:idx_lenth]
         rgb2ir_label = [(i,j) for i,j in zip(np.array(pseudo_labels_rgb)[idx1[:idx_lenth]],np.array(pseudo_labels_ir)[idx2[:idx_lenth]])]
         # print('rgb2ir_label',rgb2ir_label)
@@ -839,7 +849,7 @@ def main_worker_stage2(args,log_s1_name,log_s2_name):
         rgb2ir_label_cnt_sorted = sorted(rgb2ir_label_cnt.items(),key = lambda x:x[1],reverse = True)
         lenth = len(rgb2ir_label_cnt_sorted)
         lamda_cm=0.1
-        in_rgb_label=[]
+        in_rgb_label=[] # 用于存储已经合并过的标签
         in_ir_label=[]
         match_cnt = 0
         right = 0
@@ -851,7 +861,7 @@ def main_worker_stage2(args,log_s1_name,log_s2_name):
                 continue
             if key[0] in in_rgb_label or key[1] in in_ir_label:
                 continue
-            update_memory = trainer.memory_ir.features[key[1]]
+            update_memory = trainer.memory_ir.features[key[1]] # 表示要更新的内存特征
             trainer.memory_rgb.features[key[0]] = lamda_cm*trainer.memory_rgb.features[key[0]] + (1-lamda_cm)*(update_memory)
             trainer.memory_ir.features[key[1]] = lamda_cm*trainer.memory_ir.features[key[1]] + (1-lamda_cm)*(update_memory)
             in_rgb_label.append(key[0])
@@ -1061,6 +1071,9 @@ def main_worker_stage2(args,log_s1_name,log_s2_name):
 
     end_time = time.monotonic()
     print('Total running time: ', timedelta(seconds=end_time - start_time))
+    # sys.stdout.close()  # 关闭Logger实例
+    # sys.stdout = original_stdout  # 恢复原始的sys.stdout
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Augmented Dual-Contrastive Aggregation Learning for USL-VI-ReID")
