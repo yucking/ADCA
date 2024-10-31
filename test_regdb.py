@@ -140,7 +140,7 @@ class TestData(data.Dataset):
         test_image = []
         for i in range(len(test_img_file)):
             img = Image.open(test_img_file[i])
-            img = img.resize((img_size[0], img_size[1]), Image.ANTIALIAS)
+            img = img.resize((img_size[0], img_size[1]), Image.LANCZOS)
             pix_array = np.array(img)
             test_image.append(pix_array)
         test_image = np.array(test_image)
@@ -311,7 +311,7 @@ def eval_regdb(distmat, q_pids, g_pids, max_rank = 20):
 def main_worker(args):
     log_name='regdb_s2'#model path
     model = create_model(args)
-    for trial in range(1,11):#(1,11):
+    for trial in range(1,3):#(1,11):
         args.test_batch=64
         args.img_w=args.width
         args.img_h=args.height
@@ -333,7 +333,7 @@ def main_worker(args):
 
         mode='visible to thermal'
         print(mode)
-        data_path='./data/regdb/'
+        data_path='./data/regdb/RegDB/'
         query_img, query_label = process_test_regdb(data_path, trial=trial, modal='visible')
         gall_img, gall_label = process_test_regdb(data_path, trial=trial, modal='thermal')
 
@@ -372,7 +372,7 @@ def main_worker(args):
     print('FC:     Rank-1: {:.2%} | Rank-5: {:.2%} | Rank-10: {:.2%}| Rank-20: {:.2%}| mAP: {:.2%}| mINP: {:.2%}'.format(
             cmc[0], cmc[4], cmc[9], cmc[19], mAP, mINP))
 #################################
-    for trial in range(1,11):#(1,11):
+    for trial in range(1,3):#(1,11):
         args.test_batch=64
         args.img_w=args.width
         args.img_h=args.height
@@ -394,7 +394,7 @@ def main_worker(args):
 
         mode='thermal to visible'
         print(mode)
-        data_path='./data/regdb/'
+        data_path='./data/regdb/RegDB/'
         query_img, query_label = process_test_regdb(data_path, trial=trial, modal='thermal')
         gall_img, gall_label = process_test_regdb(data_path, trial=trial, modal='visible')
 

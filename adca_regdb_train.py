@@ -522,7 +522,7 @@ def main_worker_stage1(args,log_s1_name):
             ])
             mode='all'
             data_path='./data/regdb/RegDB/'
-            query_img, query_label = process_test_regdb(data_path, trial=trial, modal='visible')
+            query_img, query_label = process_test_regdb(data_path, trial=trial, modal='visible')# 热成像到可见光
             gall_img, gall_label = process_test_regdb(data_path, trial=trial, modal='thermal')
 
             gallset = TestData(gall_img, gall_label, transform=transform_test, img_size=(args.img_w, args.img_h))

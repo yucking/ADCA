@@ -467,7 +467,7 @@ def main_worker_stage1(args,log_s1_name):
 
             cluster_loader_rgb = get_test_loader(dataset_rgb, args.height, args.width,
                                              256, args.workers, 
-                                             testset=sorted(dataset_rgb.train)) # 创建一个测试数据加载器，用于加载RGB数据集
+                                             testset=sorted(dataset_rgb.train)) # 创建一个测试数据加载器，用于加载RGB数据集1
             features_rgb, _ = extract_features(model, cluster_loader_rgb, print_freq=50,mode=1)
             del cluster_loader_rgb,
             features_rgb = torch.cat([features_rgb[f].unsqueeze(0) for f, _, _ in sorted(dataset_rgb.train)], 0) # 拼接处理好的特征向量并存储：张量的大小为(num_images, num_features)，其中num_images是dataset_rgb.train中的图像数量，num_features是每个图像的特征向量的大小

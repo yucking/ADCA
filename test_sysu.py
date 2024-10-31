@@ -92,7 +92,7 @@ class TestData(data.Dataset):
         test_image = []
         for i in range(len(test_img_file)):
             img = Image.open(test_img_file[i])
-            img = img.resize((img_size[0], img_size[1]), Image.ANTIALIAS)
+            img = img.resize((img_size[0], img_size[1]), Image.LANCZOS)
             pix_array = np.array(img)
             test_image.append(pix_array)
         test_image = np.array(test_image)
@@ -402,7 +402,7 @@ def main_worker(args):
     checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar'))
     model.load_state_dict(checkpoint['state_dict'])
     
-    data_path='./data/sysu'
+    data_path='./data/sysu/SYSU-MM01'
     query_img, query_label, query_cam = process_query_sysu(data_path, mode=mode)
     nquery = len(query_label)
     queryset = TestData(query_img, query_label, transform=transform_test, img_size=(args.img_w, args.img_h))
